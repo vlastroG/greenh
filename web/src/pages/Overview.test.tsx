@@ -46,3 +46,11 @@ test('overview keeps cards and toasts on failure', async () => {
   expect(screen.getByText('Monstera')).toBeInTheDocument()
   expect(screen.getByText('Ficus')).toBeInTheDocument()
 })
+
+test('overview says it is retrying when the first load fails', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+    throw new TypeError('Failed to fetch')
+  })
+  renderWithProviders(<Overview />)
+  expect(await screen.findByText("Couldn't load pots — retrying")).toBeInTheDocument()
+})

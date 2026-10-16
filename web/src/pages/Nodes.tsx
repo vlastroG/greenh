@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import type { Node } from '../api/client'
 import { useNodes, usePots, useRenameNode } from '../api/hooks'
+import { LoadError } from '../components/LoadError'
 import { formatAgo } from '../lib/format'
 
 function NodeName({ node }: { node: Node }) {
@@ -57,8 +58,7 @@ export default function Nodes() {
   const navigate = useNavigate()
 
   if (isPending) return <p className="text-gray-500">Loading…</p>
-  // on a failed first load the toast explains it
-  if (!nodes) return null
+  if (!nodes) return <LoadError what="nodes" />
   if (nodes.length === 0) {
     return <p className="text-gray-600">No nodes have reported yet. Start the simulator or a sensor node.</p>
   }

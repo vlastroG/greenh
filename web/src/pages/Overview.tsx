@@ -1,13 +1,13 @@
 import { Link } from 'react-router'
 import { usePots } from '../api/hooks'
+import { LoadError } from '../components/LoadError'
 import { PotCard } from '../components/PotCard'
 
 export default function Overview() {
   const { data: pots, isPending } = usePots()
 
   if (isPending) return <p className="text-gray-500">Loading…</p>
-  // on a failed first load the toast explains it
-  if (!pots) return null
+  if (!pots) return <LoadError what="pots" />
   if (pots.length === 0) {
     return (
       <p className="text-gray-600">

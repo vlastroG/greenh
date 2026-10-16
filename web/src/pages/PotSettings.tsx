@@ -4,6 +4,7 @@ import type { Pot } from '../api/client'
 import { useCheckNow, useDeletePot, useNodes, usePot, useUpdatePot } from '../api/hooks'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { PotForm, useSaveErrors, type PotFormValues } from '../components/PotForm'
+import { LoadError } from '../components/LoadError'
 import { errorMessage, useToast } from '../components/Toast'
 
 // polls nodes fast only while mounted
@@ -66,7 +67,7 @@ export default function PotSettings() {
   const { errors, clear, onError } = useSaveErrors()
 
   if (pot.isPending || nodes.isPending) return <p className="text-gray-500">Loading…</p>
-  if (!pot.data) return null
+  if (!pot.data) return <LoadError what="this pot" />
   const p = pot.data
 
   const initial: PotFormValues = {

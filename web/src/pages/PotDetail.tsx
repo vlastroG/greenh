@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useAdvice, usePot } from '../api/hooks'
 import { AdviceHistory } from '../components/AdviceHistory'
 import { CheckNowButton } from '../components/CheckNowButton'
+import { LoadError } from '../components/LoadError'
 import { LogWatering } from '../components/LogWatering'
 import { MoistureGauge } from '../components/MoistureGauge'
 import { PotCharts } from '../components/PotCharts'
@@ -38,8 +39,7 @@ export default function PotDetail() {
   const advice = useAdvice(potId)
 
   if (pot.isPending) return <p className="text-gray-500">Loading…</p>
-  // on a failed first load the toast explains it
-  if (!pot.data) return null
+  if (!pot.data) return <LoadError what="this pot" />
   const p = pot.data
 
   const history = advice.data?.history ?? []
