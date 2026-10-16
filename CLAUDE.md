@@ -2,21 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status
-
-Pre-implementation. The only content is the approved design spec, [docs/plant-waterer-design.md](docs/plant-waterer-design.md). It's the source of truth, so read it before changing anything. Update this file once real code, a Makefile and a compose file exist.
-
 ## Project
 
 A hobby automatic plant waterer: for each pot, say whether it needs water and how much. Software only for now. Hardware is simulated, and the UI is a web dashboard.
 
-## Planned commands (from the spec)
+## Status
 
-- `docker compose up` starts everything (services `waterer` and `simulator`).
-- `make test` runs all unit, integration and dashboard tests. Automated tests never call a real LLM.
-- `go test -tags live ./advisor/openaicompat/...` runs the optional real LLM call.
-- `go test -tags e2e ...` runs the whole-system smoke test (needs compose).
-- Dashboard: `tsc` plus Vitest and Testing Library. The Vite dev server proxies `/api` to the backend.
+Backend, simulator and React dashboard (`web/`, embedded in the `waterer` binary) are implemented.
+
+## Commands
+
+`make` may be absent on Windows; each target is a plain command.
+
+- `docker compose up --build` starts `waterer` (API on :8080) and `simulator`. Reads an optional `.env` (see `.env.example`).
+- `make test` runs `go test ./...`, then in `web/` `npm ci`, typecheck and vitest. Automated tests never call a real LLM.
+- `go test ./core -run TestSummarize -v` runs a single test.
+- `go generate ./api/...` regenerates Go types from `api/openapi.yaml`.
+- `go test -tags e2e ./e2e/... -v -count=1` (`make e2e`) runs the smoke test against a running compose stack (`WATERER_URL`, default `http://localhost:8080`).
+- `go test -tags live ./advisor/openaicompat/...` runs the optional real LLM call (needs `ADVISOR_API_KEY`).
+- `cd web && npm run dev` starts the Vite dev server (proxies `/api` to :8080; run `go run ./cmd/waterer` alongside).
+- `cd web && npm test -- --run` runs dashboard tests; one test: `npx vitest run src/lib/status.test.ts`.
+- `cd web && npm run gen` regenerates TS types after an `openapi.yaml` change.
+- `cd web && npm run build` produces `web/dist`, which `web/embed.go` embeds. Go builds without it serve 503.
+- `make image` builds multi-arch images with buildx.
 
 ## Architecture
 
@@ -27,7 +35,7 @@ A hobby automatic plant waterer: for each pot, say whether it needs water and ho
 - **Raw readings are stored as received.** Moisture % is computed when read, using the pot's `dry_raw`/`wet_raw` calibration, so recalibrating fixes past history too. Sensors report inverted values (drier = higher raw).
 - **Node / channel / pot:** a pot links to exactly one `(node_id, channel)`. An unknown `node_id` is auto-registered with unlinked channels.
 - **Advisor pipeline:** pre-checks in `core` (`sensor_offline`, `needs_calibration`) run first. Then the LLM (`openaicompat`, DeepSeek first) gets an anonymized summary. Our code validates every answer. On a failure it retries once, then falls back to rules with the `fallback` flag set. The rules advisor runs on every check, and its result is stored next to the LLM's for the "disagree" marker. Each advice record stores provider, model, prompt version and the exact input summary. The system prompt lives in one versioned file.
-- **Scheduler:** wakes every minute and runs per-pot checks. It never runs two checks for the same pot at once, one pot's failure doesn't block the others, and after downtime each overdue pot gets a single check.
+- **Scheduler:** wakes every minute and runs per-pot checks. It never runs two checks for the same pot at once, one pot's failure doesn't block the others, and after downtime each overdue pot gets a single check. A pot whose latest advice is non-ok is rechecked after 5 minutes. `Pot.current.status` is the live precheck at read time, so the badge doesn't wait for the next check.
 
 ## Constraints
 

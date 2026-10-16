@@ -1,0 +1,7 @@
+.env
+.git
+*.db*
+bin/
+.superpowers/
+web/node_modules
+web/dist/*
