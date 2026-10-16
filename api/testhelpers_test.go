@@ -38,7 +38,7 @@ func newTestAPI(t *testing.T) (*httptest.Server, *sqlite.Store) {
 	})
 	srv := httptest.NewServer(api.NewHandler(api.Deps{
 		Store: st, Ingest: ingest.New(st, now, log), Checker: checker,
-		Advisor: core.RulesAdvisor{}.Info(), Now: now, Log: log,
+		Advisor: core.RulesAdvisor{}.Info(), OfflineAfter: 30 * time.Minute, Now: now, Log: log,
 	}))
 	t.Cleanup(srv.Close)
 	return srv, st

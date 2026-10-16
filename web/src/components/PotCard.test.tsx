@@ -13,7 +13,7 @@ function card(overrides: Partial<Pot> = {}) {
 
 describe('PotCard', () => {
   test('card shows OK pot', () => {
-    card({ current: { moisture_raw: 2000, moisture_pct: 42, last_reading_at: '2026-10-16T13:58:00Z' } })
+    card({ current: { status: 'ok', moisture_raw: 2000, moisture_pct: 42, last_reading_at: '2026-10-16T13:58:00Z' } })
     expect(screen.getByText('Monstera')).toBeInTheDocument()
     expect(screen.getByText('42%')).toBeInTheDocument()
     expect(screen.getByText('OK')).toBeInTheDocument()
@@ -28,7 +28,7 @@ describe('PotCard', () => {
   })
 
   test('card uncalibrated shows dash', () => {
-    card({ current: { moisture_raw: 2000, moisture_pct: null, last_reading_at: '2026-10-16T13:58:00Z' } })
+    card({ current: { status: 'ok', moisture_raw: 2000, moisture_pct: null, last_reading_at: '2026-10-16T13:58:00Z' } })
     expect(screen.getByText('—')).toBeInTheDocument()
   })
 
@@ -38,7 +38,7 @@ describe('PotCard', () => {
   })
 
   test('card shows stale hint', () => {
-    card({ current: { moisture_raw: 2000, moisture_pct: 55, last_reading_at: '2026-10-16T12:00:00Z' } })
+    card({ current: { status: 'ok', moisture_raw: 2000, moisture_pct: 55, last_reading_at: '2026-10-16T12:00:00Z' } })
     expect(screen.getByText('Last reading 2 h ago')).toBeInTheDocument()
   })
 })

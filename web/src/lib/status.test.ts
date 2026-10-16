@@ -13,7 +13,7 @@ test('badgeFor', () => {
 
 test('staleHint', () => {
   const now = new Date('2026-10-16T12:00:00Z')
-  const reading = (iso: string | null) => ({ moisture_raw: 1, moisture_pct: 1, last_reading_at: iso })
+  const reading = (iso: string | null) => ({ status: 'ok' as const, moisture_raw: 1, moisture_pct: 1, last_reading_at: iso })
   expect(staleHint(makePot({ current: reading('2026-10-16T11:55:00Z') }), now)).toBeNull()
   expect(staleHint(makePot({ current: reading('2026-10-16T10:00:00Z') }), now)).toBe('Last reading 2 h ago')
   expect(staleHint(makePot({ current: reading(null) }), now)).toBe('No readings yet')

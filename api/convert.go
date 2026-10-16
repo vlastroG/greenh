@@ -58,8 +58,8 @@ func toReading(in ReadingIn) core.Reading {
 	return r
 }
 
-// toPot needs the pot's last reading (nil if none) and latest advice (nil if none).
-func toPot(p core.Pot, last *core.RawPoint, latest *core.Advice) (Pot, error) {
+// toPot needs the pot's last reading (nil if none), latest advice (nil if none) and live precheck status.
+func toPot(p core.Pot, last *core.RawPoint, latest *core.Advice, status core.Status) (Pot, error) {
 	out := Pot{
 		Id:               p.ID,
 		Name:             p.Name,
@@ -80,6 +80,7 @@ func toPot(p core.Pot, last *core.RawPoint, latest *core.Advice) (Pot, error) {
 			MoistureRaw:   nullable.NewNullNullable[int](),
 			MoisturePct:   nullable.NewNullNullable[float64](),
 			LastReadingAt: nullable.NewNullNullable[time.Time](),
+			Status:        PotCurrentStatus(status),
 		},
 		LatestAdvice: nullable.NewNullNullable[Advice](),
 	}

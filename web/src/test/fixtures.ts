@@ -37,7 +37,7 @@ export function makePot(overrides: Partial<Pot> = {}): Pot {
     amount_fraction: 0.15,
     check_interval_min: 360,
     created_at: '2026-10-01T08:00:00Z',
-    current: { moisture_raw: 2000, moisture_pct: 55, last_reading_at: '2026-10-16T11:58:00Z' },
+    current: { status: 'ok', moisture_raw: 2000, moisture_pct: 55, last_reading_at: '2026-10-16T11:58:00Z' },
     latest_advice: makeAdvice(),
     ...overrides,
   }

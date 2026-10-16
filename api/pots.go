@@ -34,7 +34,12 @@ func (s *server) potView(ctx context.Context, p core.Pot) (Pot, error) {
 	if err != nil {
 		return Pot{}, err
 	}
-	return toPot(p, last, latest)
+	var lastAt *time.Time
+	if last != nil {
+		lastAt = &last.TS
+	}
+	status := core.Precheck(p, lastAt, s.d.Now(), s.d.OfflineAfter)
+	return toPot(p, last, latest, status)
 }
 
 func (s *server) ListPots(ctx context.Context, _ ListPotsRequestObject) (ListPotsResponseObject, error) {

@@ -437,8 +437,12 @@ components:
 
     PotCurrent:
       type: object
-      required: [moisture_raw, moisture_pct, last_reading_at]
+      required: [moisture_raw, moisture_pct, last_reading_at, status]
       properties:
+        status:
+          type: string
+          enum: [ok, sensor_offline, needs_calibration]
+          description: Live precheck at read time (offline, uncalibrated), independent of the latest advice
         moisture_raw: { type: integer, nullable: true }
         moisture_pct:
           type: number

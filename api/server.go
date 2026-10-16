@@ -27,8 +27,10 @@ type Deps struct {
 		Check(context.Context, int64, core.Trigger) (core.Advice, error)
 	}
 	Advisor core.ProviderInfo
-	Now     func() time.Time
-	Log     *slog.Logger
+	// OfflineAfter drives the live pot status (current.status)
+	OfflineAfter time.Duration
+	Now          func() time.Time
+	Log          *slog.Logger
 }
 
 type server struct{ d Deps }

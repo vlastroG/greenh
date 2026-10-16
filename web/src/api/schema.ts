@@ -303,6 +303,11 @@ export interface components {
             latest_advice: components["schemas"]["Advice"] | null;
         };
         PotCurrent: {
+            /**
+             * @description Live precheck at read time (offline, uncalibrated), independent of the latest advice
+             * @enum {string}
+             */
+            status: "ok" | "sensor_offline" | "needs_calibration";
             moisture_raw: number | null;
             /**
              * Format: double

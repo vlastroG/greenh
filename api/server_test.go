@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/oapi-codegen/nullable"
 
 	"github.com/vlastrog/greenh/api"
+	"github.com/vlastrog/greenh/core"
 )
 
 // val fails unless n holds a value.
@@ -379,4 +381,41 @@ func TestHealth(t *testing.T) {
 func TestCheckNowUnknownPot(t *testing.T) {
 	srv, _ := newTestAPI(t)
 	expectError(t, do(t, http.MethodPost, potURL(srv, 999, "/advice"), nil), http.StatusNotFound, api.ErrorCodeNotFound)
+}
+
+func TestPotCurrentStatusIsLive(t *testing.T) {
+	srv, st := newTestAPI(t)
+	unlinked := createPot(t, srv, nil)
+	if unlinked.Current.Status != api.SensorOffline {
+		t.Errorf("unlinked status = %q, want sensor_offline", unlinked.Current.Status)
+	}
+
+	postReading(t, srv, "node-1", testNow.Add(-time.Minute), map[int]int{0: 405})
+	fresh := createPot(t, srv, map[string]any{"node_id": "node-1", "channel": 0})
+	if fresh.Current.Status != api.NeedsCalibration {
+		t.Errorf("uncalibrated status = %q, want needs_calibration", fresh.Current.Status)
+	}
+	got := expect[api.Pot](t, do(t, http.MethodPatch, potURL(srv, fresh.Id, ""),
+		map[string]any{"dry_raw": 540, "wet_raw": 270}), http.StatusOK)
+	if got.Current.Status != api.Ok {
+		t.Errorf("calibrated status = %q, want ok", got.Current.Status)
+	}
+
+	// dropout: the last reading is older than offline_after while the stored advice still says ok
+	postReading(t, srv, "node-2", testNow.Add(-40*time.Minute), map[int]int{0: 405})
+	pot := createPot(t, srv, map[string]any{"node_id": "node-2", "channel": 0, "dry_raw": 540, "wet_raw": 270})
+	rec := &core.Recommendation{NeedsWater: false, Confidence: core.ConfidenceHigh, Reason: "moist"}
+	if _, err := st.InsertAdvice(context.Background(), core.Advice{
+		PotID: pot.Id, CreatedAt: testNow.Add(-time.Hour), Trigger: core.TriggerScheduled,
+		Status: core.StatusOK, Recommendation: rec, Rules: rec, Summary: []byte(`{}`),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got = expect[api.Pot](t, do(t, http.MethodGet, potURL(srv, pot.Id, ""), nil), http.StatusOK)
+	if got.Current.Status != api.SensorOffline {
+		t.Errorf("dropout status = %q, want sensor_offline", got.Current.Status)
+	}
+	if latest := val(t, got.LatestAdvice, "latest_advice"); latest.Status != api.AdviceStatusOk {
+		t.Errorf("latest_advice.status = %q, want ok", latest.Status)
+	}
 }

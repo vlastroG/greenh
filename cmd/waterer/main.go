@@ -76,12 +76,13 @@ func run(cfg Config, log *slog.Logger) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/", api.NewHandler(api.Deps{
-		Store:   store,
-		Ingest:  ingest.New(store, now, log),
-		Checker: checker,
-		Advisor: adv.Info(),
-		Now:     now,
-		Log:     log,
+		Store:        store,
+		Ingest:       ingest.New(store, now, log),
+		Checker:      checker,
+		Advisor:      adv.Info(),
+		OfflineAfter: cfg.OfflineAfter,
+		Now:          now,
+		Log:          log,
 	}))
 	mux.Handle("/", web.Handler())
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
