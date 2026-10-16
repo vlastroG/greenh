@@ -8,7 +8,7 @@ A hobby automatic plant waterer: for each pot, say whether it needs water and ho
 
 ## Status
 
-Backend and simulator are implemented. The React dashboard is a separate upcoming plan.
+Backend, simulator and React dashboard (`web/`, embedded in the `waterer` binary) are implemented.
 
 ## Commands
 
@@ -20,6 +20,10 @@ Backend and simulator are implemented. The React dashboard is a separate upcomin
 - `go generate ./api/...` regenerates Go types from `api/openapi.yaml`.
 - `go test -tags e2e ./e2e/... -v -count=1` (`make e2e`) runs the smoke test against a running compose stack (`WATERER_URL`, default `http://localhost:8080`).
 - `go test -tags live ./advisor/openaicompat/...` runs the optional real LLM call (needs `ADVISOR_API_KEY`).
+- `cd web && npm run dev` starts the Vite dev server (proxies `/api` to :8080; run `go run ./cmd/waterer` alongside).
+- `cd web && npm test -- --run` runs dashboard tests; one test: `npx vitest run src/lib/status.test.ts`.
+- `cd web && npm run gen` regenerates TS types after an `openapi.yaml` change.
+- `cd web && npm run build` produces `web/dist`, which `web/embed.go` embeds. Go builds without it serve 503.
 - `make image` builds multi-arch images with buildx.
 
 ## Architecture

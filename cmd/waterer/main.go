@@ -18,6 +18,7 @@ import (
 	"github.com/vlastrog/greenh/ingest"
 	"github.com/vlastrog/greenh/scheduler"
 	"github.com/vlastrog/greenh/store/sqlite"
+	"github.com/vlastrog/greenh/web"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -82,6 +83,7 @@ func run(cfg Config, log *slog.Logger) error {
 		Now:     now,
 		Log:     log,
 	}))
+	mux.Handle("/", web.Handler())
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 
 	schedDone := make(chan struct{})
