@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project
+
+A hobby automatic plant waterer: for each pot, say whether it needs water and how much. Software only for now. Hardware is simulated, and the UI is a web dashboard.
+
 ## Status
 
 Backend and simulator are implemented. The React dashboard is a separate upcoming plan.
