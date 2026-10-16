@@ -121,7 +121,10 @@ func (c *Checker) check(ctx context.Context, potID int64, trig core.Trigger) (co
 	}
 	primary := rules
 	if info.Provider != rulesProvider {
-		rec, reason := c.askAdvisor(ctx, req, pot.PotML)
+		rec, reason, err := c.askAdvisor(ctx, req, pot.PotML)
+		if err != nil {
+			return core.Advice{}, err
+		}
 		if reason == "" {
 			primary = rec
 		} else {
@@ -139,21 +142,31 @@ func (c *Checker) check(ctx context.Context, potID int64, trig core.Trigger) (co
 }
 
 // askAdvisor makes up to maxAttempts tries; a non-empty reason means all failed.
-func (c *Checker) askAdvisor(ctx context.Context, req core.AdviceRequest, potML int) (core.Recommendation, string) {
+// It returns ctx's error, with no fallback, once ctx is done.
+func (c *Checker) askAdvisor(ctx context.Context, req core.AdviceRequest, potML int) (core.Recommendation, string, error) {
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return core.Recommendation{}, "", err
+		}
 		rec, err := c.attempt(ctx, req, potML, attempt)
 		if err == nil {
-			return rec, ""
+			return rec, "", nil
 		}
 		lastErr = err
+		if attempt < maxAttempts {
+			c.cfg.Log.Warn("advisor attempt failed, retrying", "attempt", attempt, "error", err)
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return core.Recommendation{}, "", err
 	}
 	reason := lastErr.Error()
 	if len([]rune(reason)) > maxReasonLength {
 		reason = string([]rune(reason)[:maxReasonLength])
 	}
 	c.cfg.Log.Warn("advisor failed, using rules fallback", "error", reason)
-	return core.Recommendation{}, reason
+	return core.Recommendation{}, reason, nil
 }
 
 func (c *Checker) attempt(ctx context.Context, req core.AdviceRequest, potML, attempt int) (core.Recommendation, error) {

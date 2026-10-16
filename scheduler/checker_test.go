@@ -245,6 +245,29 @@ func TestCheckTimeoutFallsBack(t *testing.T) {
 	}
 }
 
+func TestCheckCanceledStopsWithoutFallback(t *testing.T) {
+	st := sqlitetest.New(t)
+	pot := createPot(t, st, true, true)
+	addReadings(t, st, 50, 50)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cancelDuringAttempt := func(actx context.Context) (core.Recommendation, error) {
+		cancel()
+		return core.Recommendation{}, actx.Err()
+	}
+	fake := &fakeAdvisor{responses: []adviseFunc{cancelDuringAttempt, answer(noWater)}}
+	_, err := newChecker(st, fake, time.Second).Check(ctx, pot.ID, core.TriggerScheduled)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if fake.count() != 1 {
+		t.Errorf("calls = %d, want no retry after cancel", fake.count())
+	}
+	if got, err := st.LatestAdvice(context.Background(), pot.ID); err != nil || got != nil {
+		t.Fatalf("advice stored after cancel: %+v %v", got, err)
+	}
+}
+
 func TestCheckRulesProviderNoRetry(t *testing.T) {
 	st := sqlitetest.New(t)
 	pot := createPot(t, st, true, true)
