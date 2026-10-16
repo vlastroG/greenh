@@ -2,13 +2,29 @@ import { expect, test } from 'vitest'
 import { makeAdvice, makePot } from '../test/fixtures'
 import { badgeFor, rangeQuery, staleHint } from './status'
 
-test('badgeFor', () => {
-  expect(badgeFor(makePot({ latest_advice: null })).label).toBe('No check yet')
-  expect(badgeFor(makePot({ latest_advice: makeAdvice({ status: 'sensor_offline', recommendation: null }) })).label).toBe('Sensor offline')
-  expect(badgeFor(makePot({ latest_advice: makeAdvice({ status: 'needs_calibration', recommendation: null }) })).label).toBe('Needs calibration')
+test('badgeFor falls back to latest advice when the live status is ok', () => {
+  expect(badgeFor(makePot({ latest_advice: null }))).toEqual({ label: 'No check yet', tone: 'neutral' })
   expect(badgeFor(makePot({ latest_advice: makeAdvice({ recommendation: { needs_water: true, amount_ml: 250, confidence: 'medium', reason: 'x' } }) })))
     .toEqual({ label: 'Water ~250 ml', tone: 'water' })
   expect(badgeFor(makePot())).toEqual({ label: 'OK', tone: 'ok' })
+})
+
+test('badgeFor prefers the live status over stale advice', () => {
+  const current = (status: 'ok' | 'sensor_offline' | 'needs_calibration') => ({ ...makePot().current, status })
+  // dropout while the last advice still says ok
+  expect(badgeFor(makePot({ current: current('sensor_offline') }))).toEqual({ label: 'Sensor offline', tone: 'warn' })
+  expect(badgeFor(makePot({ current: current('needs_calibration'), latest_advice: null })))
+    .toEqual({ label: 'Needs calibration', tone: 'warn' })
+  // calibrated or recovered, but the last advice was a precheck failure
+  for (const status of ['sensor_offline', 'needs_calibration'] as const) {
+    expect(badgeFor(makePot({ latest_advice: makeAdvice({ status, recommendation: null, rules: null }) })))
+      .toEqual({ label: 'Checking soon', tone: 'neutral' })
+  }
+})
+
+test('badgeFor shows unlinked pots as not linked', () => {
+  const pot = makePot({ node_id: null, channel: null, current: { ...makePot().current, status: 'sensor_offline' } })
+  expect(badgeFor(pot)).toEqual({ label: 'Not linked', tone: 'warn' })
 })
 
 test('staleHint', () => {

@@ -6,11 +6,15 @@ export type Range = '24h' | '7d' | '30d'
 
 const STALE_AFTER_MS = 15 * 60_000
 
+// the live status (current.status) wins over the latest advice, which can be hours old
 export function badgeFor(pot: Pot): { label: string; tone: Tone } {
+  if (pot.node_id == null) return { label: 'Not linked', tone: 'warn' }
+  if (pot.current.status === 'sensor_offline') return { label: 'Sensor offline', tone: 'warn' }
+  if (pot.current.status === 'needs_calibration') return { label: 'Needs calibration', tone: 'warn' }
   const advice = pot.latest_advice
   if (!advice) return { label: 'No check yet', tone: 'neutral' }
-  if (advice.status === 'sensor_offline') return { label: 'Sensor offline', tone: 'warn' }
-  if (advice.status === 'needs_calibration') return { label: 'Needs calibration', tone: 'warn' }
+  // precheck failed last time but passes now; the scheduler rechecks within minutes
+  if (advice.status !== 'ok') return { label: 'Checking soon', tone: 'neutral' }
   if (advice.recommendation?.needs_water) {
     return { label: `Water ~${advice.recommendation.amount_ml} ml`, tone: 'water' }
   }
