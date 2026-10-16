@@ -170,7 +170,7 @@ func TestRenameNode(t *testing.T) {
 }
 
 func TestOpenTwiceMigratesOnce(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "twice.db")
+	path := filepath.Join(sqlitetest.TempDir(t), "twice.db")
 	for i := 0; i < 2; i++ {
 		s, err := sqlite.Open(context.Background(), path)
 		if err != nil {
