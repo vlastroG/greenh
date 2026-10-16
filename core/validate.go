@@ -1,6 +1,10 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
 
 const maxReasonLen = 200
 
@@ -17,7 +21,8 @@ func ValidateRecommendation(r Recommendation, potML int) error {
 	if r.AmountML < 0 || r.AmountML > potML/2 {
 		return fmt.Errorf("amount_ml %d outside 0..%d", r.AmountML, potML/2)
 	}
-	if n := len(r.Reason); n < 1 || n > maxReasonLen {
+	// counts characters, not bytes, so non-ASCII reasons fit the prompt's limit
+	if n := utf8.RuneCountInString(strings.TrimSpace(r.Reason)); n < 1 || n > maxReasonLen {
 		return fmt.Errorf("reason length %d outside 1..%d", n, maxReasonLen)
 	}
 	return nil
