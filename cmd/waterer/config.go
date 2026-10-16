@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -20,7 +21,9 @@ type Config struct {
 
 // LoadConfig reads settings through getenv. An openaicompat provider without
 // a key is downgraded to rules, with a warning.
-func LoadConfig(getenv func(string) string) (Config, error) {
+func LoadConfig(rawGetenv func(string) string) (Config, error) {
+	// trims stray spaces and CRs copied into .env, which would break the auth header
+	getenv := func(key string) string { return strings.TrimSpace(rawGetenv(key)) }
 	str := func(key, def string) string {
 		if v := getenv(key); v != "" {
 			return v

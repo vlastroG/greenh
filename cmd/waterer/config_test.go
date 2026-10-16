@@ -73,3 +73,22 @@ func TestConfigLogValueHidesKey(t *testing.T) {
 		t.Fatalf("want key rendered as set: %s", out)
 	}
 }
+
+func TestLoadConfigTrimsWhitespace(t *testing.T) {
+	cfg, err := LoadConfig(env(map[string]string{
+		"ADVISOR_API_KEY":  "key\r\n",
+		"ADVISOR_PROVIDER": " openaicompat ",
+		"ADVISOR_BASE_URL": "https://example.com\r",
+		"ADVISOR_MODEL":    "\tm1 ",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.APIKey != "key" || cfg.Provider != "openaicompat" || cfg.BaseURL != "https://example.com" || cfg.Model != "m1" {
+		t.Fatalf("not trimmed: provider=%q base=%q model=%q key_len=%d", cfg.Provider, cfg.BaseURL, cfg.Model, len(cfg.APIKey))
+	}
+	cfg, err = LoadConfig(env(map[string]string{"ADVISOR_API_KEY": " \r\n"}))
+	if err != nil || cfg.Provider != "rules" {
+		t.Fatalf("blank key: provider=%q err=%v, want rules", cfg.Provider, err)
+	}
+}
