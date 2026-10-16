@@ -35,7 +35,13 @@ const ADVISOR_HINT = 'Sent to the advisor — avoid personal details.'
 const SEP = '|'
 const input = 'w-full rounded-md border border-gray-300 px-2 py-1.5'
 
-// 400 details become per-field messages, 409 a toast; the global handler skips both
+const FIELDS = new Set([
+  'name', 'species', 'category', 'pot_ml', 'soil_type', 'placement',
+  'node_id', 'channel', 'threshold_pct', 'amount_fraction', 'check_interval_min',
+])
+
+// the global handler skips 400 and 409, so this toasts those unless field messages cover the 400;
+// other statuses are left to the global toast
 export function useSaveErrors() {
   const { show } = useToast()
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -43,9 +49,12 @@ export function useSaveErrors() {
     errors,
     clear: () => setErrors({}),
     onError(e: unknown) {
-      if (e instanceof ApiRequestError && e.status === 400 && e.body.details?.length) {
-        setErrors(Object.fromEntries(e.body.details.map((d) => [d.field, d.message])))
-      } else if (e instanceof ApiRequestError) {
+      if (!(e instanceof ApiRequestError)) return
+      if (e.status === 400) {
+        const mapped = (e.body.details ?? []).filter((d) => FIELDS.has(d.field))
+        if (mapped.length === 0) show(e.body.message)
+        else setErrors(Object.fromEntries(mapped.map((d) => [d.field, d.message])))
+      } else if (e.status === 409) {
         show(e.body.message)
       }
     },

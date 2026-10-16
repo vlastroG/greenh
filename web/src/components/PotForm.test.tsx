@@ -7,6 +7,7 @@ import type { Node } from '../api/client'
 import PotNew from '../pages/PotNew'
 import { makePot } from '../test/fixtures'
 import { renderWithProviders } from '../test/utils'
+import { createQueryClient } from '../api/queryClient'
 import { emptyPotValues, PotForm } from './PotForm'
 
 afterEach(() => vi.restoreAllMocks())
@@ -119,4 +120,32 @@ test('409 shows its message in a single toast', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Create pot' }))
   await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1))
   expect(screen.getByRole('alert')).toHaveTextContent('channel already linked')
+})
+
+async function submitWithGlobalSpy(res: () => Response) {
+  mockApi(res)
+  const globalToast = vi.fn()
+  renderWithProviders(
+    <Routes>
+      <Route path="/pots/new" element={<PotNew />} />
+    </Routes>,
+    { route: '/pots/new', client: createQueryClient(globalToast, { queries: { retry: false } }) },
+  )
+  await userEvent.type(await screen.findByLabelText('Name'), 'Fern')
+  await userEvent.click(screen.getByRole('button', { name: 'Create pot' }))
+  return globalToast
+}
+
+test('500 is left to the global toast and not toasted again by the form', async () => {
+  const globalToast = await submitWithGlobalSpy(() => json({ code: 'internal', message: 'boom' }, 500))
+  await waitFor(() => expect(globalToast).toHaveBeenCalledTimes(1))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('400 without field details toasts once from the form', async () => {
+  const globalToast = await submitWithGlobalSpy(() =>
+    json({ code: 'invalid_request', message: 'bad body', details: [{ field: 'unknown', message: 'x' }] }, 400),
+  )
+  expect(await screen.findByRole('alert')).toHaveTextContent('bad body')
+  expect(globalToast).not.toHaveBeenCalled()
 })
