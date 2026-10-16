@@ -1,0 +1,559 @@
+openapi: 3.0.3
+info:
+  title: Plant waterer API
+  version: 1.0.0
+  description: Backend API of the automatic plant waterer. Every error has the Error shape.
+servers:
+  - url: /api/v1
+
+paths:
+  /readings:
+    post:
+      operationId: postReadings
+      summary: Ingest one sensor reading from a node
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReadingIn' }
+      responses:
+        '202':
+          description: Accepted; stored is false for a duplicate (node_id, ts)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadingAccepted' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /nodes:
+    get:
+      operationId: listNodes
+      responses:
+        '200':
+          description: All known nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Node' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /nodes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      operationId: patchNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NodePatch' }
+      responses:
+        '200':
+          description: The renamed node
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Node' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /pots:
+    get:
+      operationId: listPots
+      responses:
+        '200':
+          description: All pots ordered by id
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Pot' }
+        default: { $ref: '#/components/responses/Default' }
+    post:
+      operationId: createPot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PotCreate' }
+      responses:
+        '201':
+          description: The created pot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /pots/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PotID'
+    get:
+      operationId: getPot
+      responses:
+        '200':
+          description: The pot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+    patch:
+      operationId: patchPot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PotPatch' }
+      responses:
+        '200':
+          description: The updated pot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        default: { $ref: '#/components/responses/Default' }
+    delete:
+      operationId: deletePot
+      responses:
+        '204':
+          description: Deleted, with the pot's waterings and advice
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /pots/{id}/readings:
+    parameters:
+      - $ref: '#/components/parameters/PotID'
+    get:
+      operationId: getPotReadings
+      summary: Reading history of the pot's linked channel, ascending
+      parameters:
+        - name: from
+          in: query
+          description: Inclusive start; defaults to now minus 24 h
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          description: Exclusive end; defaults to now. At most 31 days after from
+          schema: { type: string, format: date-time }
+        - name: step
+          in: query
+          description: Bucket size in seconds; 0 returns raw points
+          schema: { type: integer, minimum: 0, maximum: 86400, default: 0 }
+      responses:
+        '200':
+          description: History points; empty for an unlinked pot
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HistoryPoint' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /pots/{id}/waterings:
+    parameters:
+      - $ref: '#/components/parameters/PotID'
+    get:
+      operationId: listPotWaterings
+      responses:
+        '200':
+          description: The pot's waterings, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Watering' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+    post:
+      operationId: createPotWatering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WateringIn' }
+      responses:
+        '201':
+          description: The recorded watering
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Watering' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /waterings:
+    get:
+      operationId: listWaterings
+      summary: Feed of waterings recorded after since, ascending by created_at
+      parameters:
+        - name: since
+          in: query
+          description: Exclusive lower bound on created_at; defaults to now minus 24 h
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Waterings with the pot's current node link
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WateringFeedItem' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /pots/{id}/advice:
+    parameters:
+      - $ref: '#/components/parameters/PotID'
+    get:
+      operationId: getPotAdvice
+      responses:
+        '200':
+          description: Latest advice and up to 50 recent records, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdviceList' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+    post:
+      operationId: checkPotNow
+      summary: Run a manual check now
+      responses:
+        '200':
+          description: The new advice record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Advice' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Default' }
+
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        default: { $ref: '#/components/responses/Default' }
+
+components:
+  parameters:
+    PotID:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [invalid_request, not_found, conflict, internal]
+        message: { type: string }
+        details:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field: { type: string }
+        message: { type: string }
+
+    ReadingIn:
+      type: object
+      required: [node_id, channels]
+      properties:
+        node_id: { type: string, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' }
+        ts:
+          type: string
+          format: date-time
+          description: Sample time; defaults to the receive time
+        ambient: { $ref: '#/components/schemas/Ambient' }
+        channels:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/ChannelReading' }
+
+    Ambient:
+      type: object
+      properties:
+        temp_c: { type: number, format: double, minimum: -40, maximum: 85 }
+        humidity_pct: { type: number, format: double, minimum: 0, maximum: 100 }
+        light_lux: { type: number, format: double, minimum: 0, maximum: 200000 }
+
+    ChannelReading:
+      type: object
+      required: [ch, moisture_raw]
+      properties:
+        ch: { type: integer, minimum: 0, maximum: 15 }
+        moisture_raw: { type: integer, minimum: 0, maximum: 4095 }
+
+    ReadingAccepted:
+      type: object
+      required: [stored]
+      properties:
+        stored: { type: boolean }
+
+    Node:
+      type: object
+      required: [id, name, last_seen, channels]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        last_seen: { type: string, format: date-time }
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/NodeChannel' }
+
+    NodeChannel:
+      type: object
+      required: [ch, last_raw, last_at, pot_id]
+      properties:
+        ch: { type: integer }
+        last_raw: { type: integer, nullable: true }
+        last_at: { type: string, format: date-time, nullable: true }
+        pot_id: { type: integer, format: int64, nullable: true }
+
+    NodePatch:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+
+    Category:
+      type: string
+      enum: [succulent, foliage, flowering, herb]
+
+    PotCreate:
+      type: object
+      required: [name, category, pot_ml]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        species: { type: string }
+        category: { $ref: '#/components/schemas/Category' }
+        pot_ml: { type: integer, minimum: 50, maximum: 50000 }
+        soil_type: { type: string }
+        placement: { type: string }
+        node_id: { type: string }
+        channel: { type: integer, minimum: 0, maximum: 15 }
+        dry_raw: { type: integer }
+        wet_raw: { type: integer }
+        threshold_pct:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Defaults to the category's rule
+        amount_fraction:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 0.5
+          description: Defaults to the category's rule
+        check_interval_min: { type: integer, minimum: 15, maximum: 10080, default: 360 }
+
+    PotPatch:
+      type: object
+      description: Only the given fields change; null clears the link or calibration.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        species: { type: string }
+        category: { $ref: '#/components/schemas/Category' }
+        pot_ml: { type: integer, minimum: 50, maximum: 50000 }
+        soil_type: { type: string }
+        placement: { type: string }
+        node_id: { type: string, nullable: true }
+        channel: { type: integer, minimum: 0, maximum: 15, nullable: true }
+        dry_raw: { type: integer, nullable: true }
+        wet_raw: { type: integer, nullable: true }
+        threshold_pct: { type: number, format: double, minimum: 0, maximum: 100 }
+        amount_fraction: { type: number, format: double, exclusiveMinimum: true, minimum: 0, maximum: 0.5 }
+        check_interval_min: { type: integer, minimum: 15, maximum: 10080 }
+
+    Pot:
+      type: object
+      required: [id, name, species, category, pot_ml, soil_type, placement, node_id, channel,
+        dry_raw, wet_raw, threshold_pct, amount_fraction, check_interval_min, created_at,
+        current, latest_advice]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        species: { type: string }
+        category: { $ref: '#/components/schemas/Category' }
+        pot_ml: { type: integer }
+        soil_type: { type: string }
+        placement: { type: string }
+        node_id: { type: string, nullable: true }
+        channel: { type: integer, nullable: true }
+        dry_raw: { type: integer, nullable: true }
+        wet_raw: { type: integer, nullable: true }
+        threshold_pct: { type: number, format: double }
+        amount_fraction: { type: number, format: double }
+        check_interval_min: { type: integer }
+        created_at: { type: string, format: date-time }
+        current: { $ref: '#/components/schemas/PotCurrent' }
+        latest_advice:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Advice'
+
+    PotCurrent:
+      type: object
+      required: [moisture_raw, moisture_pct, last_reading_at]
+      properties:
+        moisture_raw: { type: integer, nullable: true }
+        moisture_pct:
+          type: number
+          format: double
+          nullable: true
+          description: Null when the pot is unlinked, has no readings or is not calibrated
+        last_reading_at: { type: string, format: date-time, nullable: true }
+
+    Recommendation:
+      type: object
+      required: [needs_water, amount_ml, confidence, reason]
+      properties:
+        needs_water: { type: boolean }
+        amount_ml: { type: integer }
+        confidence:
+          type: string
+          enum: [low, medium, high]
+        reason: { type: string }
+
+    Advice:
+      type: object
+      required: [id, pot_id, created_at, trigger, status, recommendation, rules, provider, model,
+        prompt_version, fallback, fallback_reason, disagree, summary]
+      properties:
+        id: { type: integer, format: int64 }
+        pot_id: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+        trigger:
+          type: string
+          enum: [scheduled, manual]
+        status:
+          type: string
+          enum: [ok, sensor_offline, needs_calibration]
+        recommendation:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Recommendation'
+        rules:
+          description: The rules advisor's answer, kept for the disagree marker
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Recommendation'
+        provider: { type: string }
+        model: { type: string }
+        prompt_version: { type: string }
+        fallback: { type: boolean }
+        fallback_reason: { type: string }
+        disagree: { type: boolean }
+        summary:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: The exact summary the advisor received
+
+    AdviceList:
+      type: object
+      required: [latest, history]
+      properties:
+        latest:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Advice'
+        history:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/Advice' }
+
+    HistoryPoint:
+      type: object
+      required: [ts, moisture_raw, moisture_pct, temp_c, humidity_pct, light_lux]
+      properties:
+        ts: { type: string, format: date-time }
+        moisture_raw: { type: number, format: double, nullable: true }
+        moisture_pct: { type: number, format: double, nullable: true }
+        temp_c: { type: number, format: double, nullable: true }
+        humidity_pct: { type: number, format: double, nullable: true }
+        light_lux: { type: number, format: double, nullable: true }
+
+    Watering:
+      type: object
+      required: [id, pot_id, ts, created_at, amount_ml, source]
+      properties:
+        id: { type: integer, format: int64 }
+        pot_id: { type: integer, format: int64 }
+        ts: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        amount_ml: { type: integer }
+        source: { type: string }
+
+    WateringIn:
+      type: object
+      required: [amount_ml]
+      properties:
+        amount_ml: { type: integer, minimum: 1, maximum: 20000 }
+        ts:
+          type: string
+          format: date-time
+          description: When the water was given; defaults to now
+        source: { type: string, default: manual }
+
+    WateringFeedItem:
+      allOf:
+        - $ref: '#/components/schemas/Watering'
+        - type: object
+          required: [node_id, channel]
+          properties:
+            node_id: { type: string, nullable: true }
+            channel: { type: integer, nullable: true }
+
+    Health:
+      type: object
+      required: [status, advisor_provider, advisor_model]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        advisor_provider: { type: string }
+        advisor_model: { type: string }
