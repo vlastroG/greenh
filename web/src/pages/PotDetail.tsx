@@ -43,8 +43,8 @@ export default function PotDetail() {
   const p = pot.data
 
   const history = advice.data?.history ?? []
-  const suggested = history.find((a) => a.status === 'ok' && a.recommendation?.needs_water)
   const latest = advice.data?.latest ?? p.latest_advice ?? null
+  const suggestedMl = latest?.status === 'ok' && latest.recommendation?.needs_water ? latest.recommendation.amount_ml : null
   const now = new Date()
 
   return (
@@ -75,7 +75,7 @@ export default function PotDetail() {
 
       <section className="space-y-2 rounded-lg border border-gray-200 bg-white p-4">
         <h2 className="text-sm font-medium text-gray-700">Log a watering</h2>
-        <LogWatering potId={p.id} suggestedMl={suggested?.recommendation?.amount_ml ?? null} />
+        <LogWatering potId={p.id} suggestedMl={suggestedMl} />
       </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-4">

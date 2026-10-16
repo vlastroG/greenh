@@ -11,7 +11,7 @@ export function LogWatering({ potId, suggestedMl }: { potId: number; suggestedMl
   const { mutate, isPending, data, reset } = useLogWatering(potId)
 
   const amount = text === '' ? NaN : Number(text)
-  const valid = Number.isFinite(amount) && amount >= MIN_ML && amount <= MAX_ML
+  const valid = Number.isInteger(amount) && amount >= MIN_ML && amount <= MAX_ML
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -24,6 +24,7 @@ export function LogWatering({ potId, suggestedMl }: { potId: number; suggestedMl
         <span className="mb-1 block">Amount (ml)</span>
         <input
           type="number"
+          step={1}
           min={MIN_ML}
           max={MAX_ML}
           value={text}

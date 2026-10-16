@@ -38,3 +38,11 @@ test('log watering rejects 0', async () => {
   await userEvent.setup().type(input, '0')
   expect(screen.getByRole('button', { name: 'Log watering' })).toBeDisabled()
 })
+
+test('log watering rejects decimals', async () => {
+  renderWithProviders(<LogWatering potId={1} suggestedMl={null} />)
+  const input = screen.getByLabelText('Amount (ml)')
+  expect(input).toHaveAttribute('step', '1')
+  await userEvent.setup().type(input, '12.5')
+  expect(screen.getByRole('button', { name: 'Log watering' })).toBeDisabled()
+})
