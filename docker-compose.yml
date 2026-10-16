@@ -10,6 +10,7 @@ services:
       - "8080:8080"
     volumes:
       - waterer-data:/data
+    restart: unless-stopped
 
   simulator:
     build:
