@@ -1,0 +1,10 @@
+backend: http://waterer:8080
+interval: 30s
+speed: 60 # drying and day cycle 60x faster; timestamps stay real
+backfill: 48h
+nodes:
+  - id: windowsill-1
+    channels:
+      - { ch: 0, category: foliage, pot_ml: 2000, start_moisture: 45, dry_raw: 540, wet_raw: 270 }
+      - { ch: 1, category: succulent, pot_ml: 500, start_moisture: 20, dry_raw: 530, wet_raw: 265 }
+      - { ch: 2, category: herb, pot_ml: 800, start_moisture: 60, dry_raw: 550, wet_raw: 280 }
