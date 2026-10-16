@@ -77,7 +77,8 @@ func NewRunner(cfg Config, b Backend, now func() time.Time, log *slog.Logger) *R
 	return r
 }
 
-// Backfill posts past readings at speed 1, starting cfg.Backfill ago.
+// Backfill posts past readings at speed 1, starting cfg.Backfill ago or right after
+// the node's last reading the backend already has, so restarts don't duplicate history.
 func (r *Runner) Backfill(ctx context.Context) error {
 	span := r.cfg.Backfill.Duration
 	if span <= 0 {
@@ -85,11 +86,19 @@ func (r *Runner) Backfill(ctx context.Context) error {
 	}
 	step := max(r.cfg.Interval.Duration, minBackfillStep)
 	end := r.now()
-	for t := end.Add(-span); !t.After(end); t = t.Add(step) {
-		for _, n := range r.nodes {
+	lastSeen := r.lastSeen(ctx)
+	for _, n := range r.nodes {
+		from := end.Add(-span)
+		if ls, ok := lastSeen[n.id]; ok {
+			if end.Sub(ls) <= step {
+				continue
+			}
+			from = maxTime(from, ls.Add(step))
+		}
+		for t := from; !t.After(end); t = t.Add(step) {
 			amb := n.env.At(t)
-			for _, c := range n.channels {
-				if t != end.Add(-span) {
+			if t != from {
+				for _, c := range n.channels {
 					c.soil.Step(step, amb)
 				}
 			}
@@ -100,6 +109,27 @@ func (r *Runner) Backfill(ctx context.Context) error {
 	}
 	r.flush(ctx)
 	return nil
+}
+
+// lastSeen maps node id to the backend's newest reading ts; empty when the backend can't say.
+func (r *Runner) lastSeen(ctx context.Context) map[string]time.Time {
+	out := map[string]time.Time{}
+	nodes, err := r.b.Nodes(ctx)
+	if err != nil {
+		r.log.Warn("list nodes failed, running full backfill", "err", err)
+		return out
+	}
+	for _, n := range nodes {
+		out[n.ID] = n.LastSeen
+	}
+	return out
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }
 
 // Tick runs one interval: waterings, physics, then delivery.

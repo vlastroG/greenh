@@ -16,6 +16,8 @@ type fakeBackend struct {
 	posts     []ReadingPayload
 	err       error
 	waterings []WateringEvent
+	nodes     []NodeStatus
+	nodesErr  error
 }
 
 func (f *fakeBackend) PostReading(_ context.Context, r ReadingPayload) error {
@@ -28,6 +30,10 @@ func (f *fakeBackend) PostReading(_ context.Context, r ReadingPayload) error {
 
 func (f *fakeBackend) WateringsSince(context.Context, time.Time) ([]WateringEvent, error) {
 	return f.waterings, nil
+}
+
+func (f *fakeBackend) Nodes(context.Context) ([]NodeStatus, error) {
+	return f.nodes, f.nodesErr
 }
 
 type clock struct{ t time.Time }
@@ -78,6 +84,45 @@ func TestBackfillPostsHistory(t *testing.T) {
 		if p.TS.Before(clk.t.Add(-time.Hour)) || p.TS.After(clk.t) {
 			t.Fatalf("ts %v outside [now-1h, now]", p.TS)
 		}
+	}
+}
+
+func TestBackfillResumesAfterLastSeen(t *testing.T) {
+	testNow := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name     string
+		nodes    []NodeStatus
+		nodesErr error
+		min, max int
+	}{
+		{"seen 10 min ago", []NodeStatus{{ID: "n1", LastSeen: testNow.Add(-10 * time.Minute)}}, nil, 1, 2},
+		{"seen within one step", []NodeStatus{{ID: "n1", LastSeen: testNow.Add(-2 * time.Minute)}}, nil, 0, 0},
+		{"unknown node", []NodeStatus{{ID: "other", LastSeen: testNow}}, nil, 12, 13},
+		{"nodes unavailable", nil, errors.New("down"), 12, 13},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := testConfig()
+			cfg.Backfill = Duration{time.Hour}
+			fb := &fakeBackend{nodes: tc.nodes, nodesErr: tc.nodesErr}
+			r, clk := newTestRunner(cfg, fb)
+			if !clk.t.Equal(testNow) {
+				t.Fatalf("clock %v, want %v", clk.t, testNow)
+			}
+			if err := r.Backfill(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if n := len(fb.posts); n < tc.min || n > tc.max {
+				t.Fatalf("posts = %d, want %d..%d", n, tc.min, tc.max)
+			}
+			for _, n := range tc.nodes {
+				for _, p := range fb.posts {
+					if p.NodeID == n.ID && !p.TS.After(n.LastSeen) {
+						t.Fatalf("post at %v not after last_seen %v", p.TS, n.LastSeen)
+					}
+				}
+			}
+		})
 	}
 }
 

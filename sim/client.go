@@ -46,9 +46,16 @@ type HTTPError struct {
 
 func (e *HTTPError) Error() string { return fmt.Sprintf("backend returned %d: %s", e.Status, e.Body) }
 
+// NodeStatus is the part of GET /nodes the simulator needs; last_seen is the newest reading ts.
+type NodeStatus struct {
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+}
+
 type Backend interface {
 	PostReading(ctx context.Context, r ReadingPayload) error
 	WateringsSince(ctx context.Context, since time.Time) ([]WateringEvent, error)
+	Nodes(ctx context.Context) ([]NodeStatus, error)
 }
 
 type httpBackend struct {
@@ -102,6 +109,26 @@ func (b *httpBackend) WateringsSince(ctx context.Context, since time.Time) ([]Wa
 		return nil, fmt.Errorf("decode waterings: %w", err)
 	}
 	return events, nil
+}
+
+func (b *httpBackend) Nodes(ctx context.Context) ([]NodeStatus, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.base+"/api/v1/nodes", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := b.hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if err := statusError(resp); err != nil {
+		return nil, err
+	}
+	var nodes []NodeStatus
+	if err := json.NewDecoder(resp.Body).Decode(&nodes); err != nil {
+		return nil, fmt.Errorf("decode nodes: %w", err)
+	}
+	return nodes, nil
 }
 
 func statusError(resp *http.Response) error {
