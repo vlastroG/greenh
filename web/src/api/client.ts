@@ -8,7 +8,11 @@ export type HistoryPoint = components['schemas']['HistoryPoint']
 export type Watering = components['schemas']['Watering']
 export type ApiError = components['schemas']['Error']
 
-export const api = createClient<paths>({ baseUrl: '/api/v1' })
+// resolve fetch per call so tests can stub it; absolute base because Request rejects relative URLs
+export const api = createClient<paths>({
+  baseUrl: `${window.location.origin}/api/v1`,
+  fetch: (req) => globalThis.fetch(req),
+})
 
 export class ApiRequestError extends Error {
   status: number
