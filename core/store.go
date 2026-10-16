@@ -48,8 +48,14 @@ type AdviceStore interface {
 	ListAdvice(ctx context.Context, potID int64, limit int) ([]Advice, error)
 	// LatestAdvice returns nil if the pot has none.
 	LatestAdvice(ctx context.Context, potID int64) (*Advice, error)
-	// LastAdviceTimes maps pot id to its newest advice created_at.
-	LastAdviceTimes(ctx context.Context) (map[int64]time.Time, error)
+	// LastAdviceStamps maps pot id to its newest advice's created_at and status.
+	LastAdviceStamps(ctx context.Context) (map[int64]AdviceStamp, error)
+}
+
+// AdviceStamp is the part of the newest advice the scheduler needs.
+type AdviceStamp struct {
+	At     time.Time
+	Status Status
 }
 
 type Store interface {

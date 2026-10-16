@@ -72,7 +72,7 @@ func TestAdviceRoundTrip(t *testing.T) {
 	}
 }
 
-func TestLastAdviceTimes(t *testing.T) {
+func TestLastAdviceStamps(t *testing.T) {
 	s := sqlitetest.New(t)
 	ctx := context.Background()
 	p1 := mustCreatePot(t, s, newPot("a", nil, nil))
@@ -80,19 +80,34 @@ func TestLastAdviceTimes(t *testing.T) {
 	mustCreatePot(t, s, newPot("none", nil, nil))
 
 	for _, in := range []struct {
-		pot int64
-		at  time.Time
-	}{{p1.ID, t0}, {p1.ID, t0.Add(2 * time.Hour)}, {p2.ID, t0.Add(time.Hour)}} {
-		a := core.Advice{PotID: in.pot, CreatedAt: in.at, Trigger: core.TriggerScheduled, Status: core.StatusSensorOffline}
+		pot    int64
+		at     time.Time
+		status core.Status
+	}{
+		{p1.ID, t0, core.StatusSensorOffline},
+		{p1.ID, t0.Add(2 * time.Hour), core.StatusNeedsCalibration},
+		{p1.ID, t0.Add(time.Hour), core.StatusSensorOffline},
+		{p2.ID, t0.Add(time.Hour), core.StatusSensorOffline},
+	} {
+		a := core.Advice{PotID: in.pot, CreatedAt: in.at, Trigger: core.TriggerScheduled, Status: in.status}
 		if _, err := s.InsertAdvice(ctx, a); err != nil {
 			t.Fatal(err)
 		}
 	}
-	got, err := s.LastAdviceTimes(ctx)
+	got, err := s.LastAdviceStamps(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 || !got[p1.ID].Equal(t0.Add(2*time.Hour)) || !got[p2.ID].Equal(t0.Add(time.Hour)) {
-		t.Fatalf("times: %v", got)
+	want := map[int64]core.AdviceStamp{
+		p1.ID: {At: t0.Add(2 * time.Hour), Status: core.StatusNeedsCalibration},
+		p2.ID: {At: t0.Add(time.Hour), Status: core.StatusSensorOffline},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("stamps: %v", got)
+	}
+	for id, w := range want {
+		if g := got[id]; !g.At.Equal(w.At) || g.Status != w.Status {
+			t.Errorf("pot %d: %+v, want %+v", id, g, w)
+		}
 	}
 }

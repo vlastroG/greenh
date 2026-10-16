@@ -13,6 +13,8 @@ const (
 	defaultTick          = time.Minute
 	defaultParallel      = 4
 	defaultCheckInterval = 6 * time.Hour
+	// recheckNonOK re-runs prechecks soon so calibration, linking or recovery shows quickly
+	recheckNonOK = 5 * time.Minute
 )
 
 type checkRunner interface {
@@ -69,7 +71,7 @@ func (s *Scheduler) RunOnce(ctx context.Context) {
 		s.cfg.Log.Error("scheduler: list pots", "error", err)
 		return
 	}
-	last, err := s.cfg.Advice.LastAdviceTimes(ctx)
+	last, err := s.cfg.Advice.LastAdviceStamps(ctx)
 	if err != nil {
 		s.cfg.Log.Error("scheduler: last advice times", "error", err)
 		return
@@ -100,8 +102,8 @@ func (s *Scheduler) RunOnce(ctx context.Context) {
 	wg.Wait()
 }
 
-func due(p core.Pot, last map[int64]time.Time, now time.Time) bool {
-	at, ok := last[p.ID]
+func due(p core.Pot, last map[int64]core.AdviceStamp, now time.Time) bool {
+	stamp, ok := last[p.ID]
 	if !ok {
 		return true
 	}
@@ -109,5 +111,8 @@ func due(p core.Pot, last map[int64]time.Time, now time.Time) bool {
 	if interval <= 0 {
 		interval = defaultCheckInterval
 	}
-	return !at.Add(interval).After(now)
+	if stamp.Status != core.StatusOK {
+		interval = min(interval, recheckNonOK)
+	}
+	return !stamp.At.Add(interval).After(now)
 }

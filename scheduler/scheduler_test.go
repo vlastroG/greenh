@@ -56,10 +56,17 @@ func newScheduler(st core.Store, r *fakeRunner) *scheduler.Scheduler {
 
 func adviceAgo(t *testing.T, st core.Store, potID int64, ago time.Duration) {
 	t.Helper()
-	_, err := st.InsertAdvice(context.Background(), core.Advice{
-		PotID: potID, CreatedAt: now.Add(-ago), Trigger: core.TriggerScheduled, Status: core.StatusSensorOffline,
-	})
-	if err != nil {
+	statusAgo(t, st, potID, ago, core.StatusOK)
+}
+
+func statusAgo(t *testing.T, st core.Store, potID int64, ago time.Duration, status core.Status) {
+	t.Helper()
+	a := core.Advice{PotID: potID, CreatedAt: now.Add(-ago), Trigger: core.TriggerScheduled, Status: status}
+	if status == core.StatusOK {
+		rec := &core.Recommendation{Confidence: core.ConfidenceHigh, Reason: "moist"}
+		a.Recommendation, a.Rules, a.Summary = rec, rec, []byte(`{}`)
+	}
+	if _, err := st.InsertAdvice(context.Background(), a); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -94,6 +101,25 @@ func TestRunOnceChecksDuePots(t *testing.T) {
 		if call.trig != core.TriggerScheduled {
 			t.Fatalf("trigger %q", call.trig)
 		}
+	}
+}
+
+func TestRunOnceRechecksNonOKAfterFiveMinutes(t *testing.T) {
+	st := sqlitetest.New(t)
+	offlineOld := createPot(t, st, false, false)
+	uncalOld := createPot(t, st, false, false)
+	offlineFresh := createPot(t, st, false, false)
+	okOld := createPot(t, st, false, false)
+	statusAgo(t, st, offlineOld.ID, 5*time.Minute, core.StatusSensorOffline)
+	statusAgo(t, st, uncalOld.ID, 10*time.Minute, core.StatusNeedsCalibration)
+	statusAgo(t, st, offlineFresh.ID, 4*time.Minute, core.StatusSensorOffline)
+	adviceAgo(t, st, okOld.ID, 10*time.Minute)
+
+	r := &fakeRunner{}
+	newScheduler(st, r).RunOnce(context.Background())
+
+	if got := r.ids(); !equalIDs(got, offlineOld.ID, uncalOld.ID) {
+		t.Fatalf("checked %v, want [%d %d]", got, offlineOld.ID, uncalOld.ID)
 	}
 }
 

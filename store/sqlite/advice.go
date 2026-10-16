@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"time"
 
 	"github.com/vlastrog/greenh/core"
 )
@@ -119,19 +118,21 @@ func (s *Store) LatestAdvice(ctx context.Context, potID int64) (*core.Advice, er
 	return &a, nil
 }
 
-func (s *Store) LastAdviceTimes(ctx context.Context) (map[int64]time.Time, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT pot_id, MAX(created_at) FROM advice GROUP BY pot_id`)
+func (s *Store) LastAdviceStamps(ctx context.Context) (map[int64]core.AdviceStamp, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT a.pot_id, a.created_at, a.status FROM advice a
+WHERE a.id = (SELECT b.id FROM advice b WHERE b.pot_id = a.pot_id ORDER BY b.created_at DESC, b.id DESC LIMIT 1)`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := map[int64]time.Time{}
+	out := map[int64]core.AdviceStamp{}
 	for rows.Next() {
 		var id, at int64
-		if err := rows.Scan(&id, &at); err != nil {
+		var status string
+		if err := rows.Scan(&id, &at, &status); err != nil {
 			return nil, err
 		}
-		out[id] = fromMillis(at)
+		out[id] = core.AdviceStamp{At: fromMillis(at), Status: core.Status(status)}
 	}
 	return out, rows.Err()
 }
