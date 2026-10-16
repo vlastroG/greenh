@@ -5,6 +5,9 @@ import { rangeQuery, type Range } from '../lib/status'
 
 const POLL_MS = 30_000
 
+// the form handles these statuses itself, so the global error toast skips them
+const FORM_ERRORS = { handledErrors: [400, 409] }
+
 type PotCreate = components['schemas']['PotCreate']
 type PotPatch = components['schemas']['PotPatch']
 type WateringIn = components['schemas']['WateringIn']
@@ -90,6 +93,7 @@ export function useCreatePot() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: PotCreate) => unwrap(await api.POST('/pots', { body })),
+    meta: FORM_ERRORS,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pots'] }),
   })
 }
@@ -99,6 +103,7 @@ export function useUpdatePot(id: number) {
   return useMutation({
     mutationFn: async (body: PotPatch) =>
       unwrap(await api.PATCH('/pots/{id}', { params: { path: { id } }, body })),
+    meta: FORM_ERRORS,
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({ queryKey: ['pots'] }),
