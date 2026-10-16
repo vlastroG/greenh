@@ -366,7 +366,6 @@ func TestCheckNowAndAdviceList(t *testing.T) {
 	if val(t, got.LatestAdvice, "latest_advice").Id != adv.Id {
 		t.Errorf("pot latest_advice = %+v", got.LatestAdvice)
 	}
-	expectError(t, do(t, http.MethodPost, potURL(srv, 999, "/advice"), nil), http.StatusNotFound, api.ErrorCodeNotFound)
 }
 
 func TestHealth(t *testing.T) {
@@ -375,4 +374,9 @@ func TestHealth(t *testing.T) {
 	if h.Status != api.HealthStatusOk || h.AdvisorProvider != "rules" || h.AdvisorModel != "rules-v1" {
 		t.Fatalf("health = %+v", h)
 	}
+}
+
+func TestCheckNowUnknownPot(t *testing.T) {
+	srv, _ := newTestAPI(t)
+	expectError(t, do(t, http.MethodPost, potURL(srv, 999, "/advice"), nil), http.StatusNotFound, api.ErrorCodeNotFound)
 }

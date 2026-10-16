@@ -170,9 +170,13 @@ func (s *server) GetPotAdvice(ctx context.Context, req GetPotAdviceRequestObject
 }
 
 func (s *server) CheckPotNow(ctx context.Context, req CheckPotNowRequestObject) (CheckPotNowResponseObject, error) {
+	// the checker keeps per-pot state, so unknown ids must not reach it
+	if _, err := s.getPot(ctx, req.Id); err != nil {
+		return nil, err
+	}
 	a, err := s.d.Checker.Check(ctx, req.Id, core.TriggerManual)
 	if err != nil {
-		return nil, notFound(err, "pot", req.Id)
+		return nil, err
 	}
 	out, err := toAdvice(a)
 	if err != nil {
