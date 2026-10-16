@@ -1,0 +1,24 @@
+# go
+/bin/
+*.test
+*.out
+coverage.*
+
+# local data and secrets
+*.db
+*.db-shm
+*.db-wal
+.env
+
+# web
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+*.tsbuildinfo
+
+# editors and os
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
