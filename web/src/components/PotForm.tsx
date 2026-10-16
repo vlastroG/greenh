@@ -106,6 +106,8 @@ export function PotForm({
   const ownLink = linkKey(initial.node_id, initial.channel)
   const ruleHint = mode === 'create' ? 'Leave empty to use the category default' : undefined
   const placeholder = mode === 'create' ? 'Category default' : undefined
+  // PATCH can't reset a rule to the category default, so editing needs a value
+  const rulesRequired = mode === 'edit'
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -170,6 +172,8 @@ export function PotForm({
       <Field label="Dry threshold (%)" error={errors.threshold_pct} hint={ruleHint}>
         <input
           type="number"
+          step="any"
+          required={rulesRequired}
           value={threshold}
           placeholder={placeholder}
           onChange={(e) => setThreshold(e.target.value)}
@@ -179,6 +183,8 @@ export function PotForm({
       <Field label="Water amount (% of pot volume)" error={errors.amount_fraction} hint={ruleHint}>
         <input
           type="number"
+          step="any"
+          required={rulesRequired}
           value={fraction}
           placeholder={placeholder}
           onChange={(e) => setFraction(e.target.value)}

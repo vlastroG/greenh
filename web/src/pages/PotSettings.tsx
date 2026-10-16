@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { Pot } from '../api/client'
-import { useDeletePot, useNodes, usePot, useUpdatePot } from '../api/hooks'
+import { useCheckNow, useDeletePot, useNodes, usePot, useUpdatePot } from '../api/hooks'
 import { CalibrationWizard } from '../components/CalibrationWizard'
 import { PotForm, useSaveErrors, type PotFormValues } from '../components/PotForm'
 import { errorMessage, useToast } from '../components/Toast'
@@ -16,6 +16,7 @@ function OpenWizard({ pot, onSave, onCancel }: { pot: Pot; onSave(d: number, w: 
 function Calibration({ pot }: { pot: Pot }) {
   const [open, setOpen] = useState(false)
   const update = useUpdatePot(pot.id)
+  const checkNow = useCheckNow(pot.id)
   const { show } = useToast()
 
   if (pot.node_id == null || pot.channel == null) {
@@ -41,7 +42,8 @@ function Calibration({ pot }: { pot: Pot }) {
           {
             onSuccess: () => {
               setOpen(false)
-              show('Calibration saved')
+              show('Calibration saved — checking…')
+              checkNow.mutate()
             },
             onError: (e) => show(errorMessage(e)),
           },
@@ -59,6 +61,7 @@ export default function PotSettings() {
   const pot = usePot(potId)
   const nodes = useNodes()
   const update = useUpdatePot(potId)
+  const checkNow = useCheckNow(potId)
   const del = useDeletePot()
   const { errors, clear, onError } = useSaveErrors()
 
@@ -82,9 +85,17 @@ export default function PotSettings() {
 
   function submit(v: PotFormValues) {
     clear()
+    // a new sensor link changes the live status, so refresh the advice right away
+    const relinked = v.node_id !== null && (v.node_id !== initial.node_id || v.channel !== initial.channel)
     update.mutate(
       { ...v, threshold_pct: v.threshold_pct ?? undefined, amount_fraction: v.amount_fraction ?? undefined },
-      { onSuccess: () => navigate(`/pots/${potId}`), onError },
+      {
+        onSuccess: () => {
+          if (relinked) checkNow.mutate()
+          navigate(`/pots/${potId}`)
+        },
+        onError,
+      },
     )
   }
 
