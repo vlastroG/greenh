@@ -15,6 +15,7 @@ up:
 e2e:
 	go test -tags e2e ./e2e/...
 
-# image target is defined in Task 14
+# multi-arch builds; images are not loaded locally or pushed
 image:
-	@echo "not implemented yet"; exit 1
+	docker buildx build --platform linux/amd64,linux/arm64 --target waterer -t greenh/waterer .
+	docker buildx build --platform linux/amd64,linux/arm64 --target simulator -t greenh/simulator .

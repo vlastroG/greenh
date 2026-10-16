@@ -4,19 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Pre-implementation. The only content is the approved design spec, [docs/plant-waterer-design.md](docs/plant-waterer-design.md). It's the source of truth, so read it before changing anything. Update this file once real code, a Makefile and a compose file exist.
+Backend and simulator are implemented. The React dashboard is a separate upcoming plan.
 
-## Project
+## Commands
 
-A hobby automatic plant waterer: for each pot, say whether it needs water and how much. Software only for now. Hardware is simulated, and the UI is a web dashboard.
+`make` may be absent on Windows; each target is a plain command.
 
-## Planned commands (from the spec)
-
-- `docker compose up` starts everything (services `waterer` and `simulator`).
-- `make test` runs all unit, integration and dashboard tests. Automated tests never call a real LLM.
-- `go test -tags live ./advisor/openaicompat/...` runs the optional real LLM call.
-- `go test -tags e2e ...` runs the whole-system smoke test (needs compose).
-- Dashboard: `tsc` plus Vitest and Testing Library. The Vite dev server proxies `/api` to the backend.
+- `docker compose up --build` starts `waterer` (API on :8080) and `simulator`. Reads an optional `.env` (see `.env.example`).
+- `go test ./...` (`make test`) runs all tests. Automated tests never call a real LLM.
+- `go test ./core -run TestSummarize -v` runs a single test.
+- `go generate ./api/...` regenerates Go types from `api/openapi.yaml`.
+- `go test -tags e2e ./e2e/... -v -count=1` (`make e2e`) runs the smoke test against a running compose stack (`WATERER_URL`, default `http://localhost:8080`).
+- `go test -tags live ./advisor/openaicompat/...` runs the optional real LLM call (needs `ADVISOR_API_KEY`).
+- `make image` builds multi-arch images with buildx.
 
 ## Architecture
 

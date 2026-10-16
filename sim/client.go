@@ -78,7 +78,9 @@ func (b *httpBackend) PostReading(ctx context.Context, r ReadingPayload) error {
 		return err
 	}
 	defer resp.Body.Close()
-	return statusError(resp)
+	err = statusError(resp)
+	io.Copy(io.Discard, resp.Body)
+	return err
 }
 
 func (b *httpBackend) WateringsSince(ctx context.Context, since time.Time) ([]WateringEvent, error) {
@@ -104,7 +106,6 @@ func (b *httpBackend) WateringsSince(ctx context.Context, since time.Time) ([]Wa
 
 func statusError(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		io.Copy(io.Discard, resp.Body)
 		return nil
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))

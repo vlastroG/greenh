@@ -1,0 +1,23 @@
+services:
+  waterer:
+    build:
+      context: .
+      target: waterer
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8080:8080"
+    volumes:
+      - waterer-data:/data
+
+  simulator:
+    build:
+      context: .
+      target: simulator
+    depends_on:
+      - waterer
+    restart: unless-stopped
+
+volumes:
+  waterer-data:
